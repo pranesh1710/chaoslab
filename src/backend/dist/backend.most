@@ -1,0 +1,141 @@
+// Version: 1.0.0
+type BlastRadiusConfig__729702206 =
+  {
+    autoRollback : Bool;
+    geographicScope : {#global; #multi; #single};
+    instancePercentage : Nat;
+    maxDurationSeconds : Nat;
+    trafficPercentage : Nat
+  };
+type ExecutionRun__596726733 =
+  {
+    var actualDurationSeconds : Nat;
+    var completedAt : ?Timestamp__301639476;
+    experimentId : ExperimentId__973215962;
+    var faultResults : [FaultResult__123422637];
+    id : RunId__720644870;
+    var metrics : ?MetricsSnapshot__104005645;
+    var resilienceScore : ?Nat;
+    var startedAt : ?Timestamp__301639476;
+    var status : RunStatus__18334070
+  };
+type ExperimentId__973215962 = Nat;
+type ExperimentStatus__515269970 =
+  {#completed; #draft; #error; #running; #scheduled; #stopped};
+type Experiment__80697101 =
+  {
+    blastRadius : BlastRadiusConfig__729702206;
+    createdAt : Timestamp__301639476;
+    description : Text;
+    faults : [FaultConfig__235183912];
+    hypothesis : Text;
+    id : ExperimentId__973215962;
+    infrastructureTarget : InfrastructureTarget__779175137;
+    isTemplate : Bool;
+    name : Text;
+    owner : Principal;
+    probes : [ProbeConfig__375701584];
+    var status : ExperimentStatus__515269970;
+    tags : [Text];
+    var updatedAt : Timestamp__301639476
+  };
+type FaultConfig__235183912 =
+  {
+    durationSeconds : Nat;
+    faultType : Text;
+    id : FaultId__967973381;
+    parameters : [FaultParameter__702158669];
+    sequenceOrder : Nat;
+    severityWeight : Nat
+  };
+type FaultId__967973381 = Nat;
+type FaultParameter__702158669 = {key : Text; value : Text};
+type FaultResult__123422637 =
+  {
+    var affectedInstances : Nat;
+    var completedAt : ?Timestamp__301639476;
+    faultId : FaultId__967973381;
+    var startedAt : ?Timestamp__301639476;
+    var status : FaultRunStatus__973920877
+  };
+type FaultRunStatus__973920877 = {#completed; #executing; #failed; #pending};
+type InfrastructureTarget__779175137 =
+  {#aws; #azure; #custom; #kubernetes; #linux};
+type Int__270357528 = Int__616954475;
+type Int__616954475 = Int;
+type LogEntry__586895032 =
+  {
+    action : Text;
+    affectedTarget : Text;
+    experimentRunId : RunId__720644870;
+    faultType : Text;
+    id : Nat;
+    result : Text;
+    timestamp : Timestamp__301639476
+  };
+type MetricsSnapshot__104005645 =
+  {
+    affectedServiceCount : Nat;
+    cpuUtilization : Float;
+    errorRate : Float;
+    latencyP50 : Float;
+    latencyP95 : Float;
+    latencyP99 : Float;
+    memoryUtilization : Float;
+    probeResults : [ProbeResult__98919158]
+  };
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type ProbeConfig__375701584 =
+  {id : Nat; name : Text; probeType : ProbeType__819793016};
+type ProbeResult__98919158 =
+  {
+    checkedAt : Timestamp__301639476;
+    message : Text;
+    passed : Bool;
+    probeId : Nat;
+    probeName : Text
+  };
+type ProbeType__819793016 =
+  {
+    #custom : {command : Text; description : Text};
+    #http : {expectedStatusCode : Nat; timeoutSeconds : Nat; url : Text};
+    #metricThreshold :
+      {metricName : Text; operator : Text; threshold : Float}
+  };
+type RunId__720644870 = Nat;
+type RunStatus__18334070 = {#completed; #error; #queued; #running; #stopped};
+type ScoreHistoryEntry__183968226 =
+  {runId : RunId__720644870; score : Nat; timestamp : Timestamp__301639476};
+type Time__796480547 = Int__270357528;
+type Time__900049286 = Time__796480547;
+type Timestamp__301639476 = Time__900049286;
+actor {
+  stable experiments :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Experiment__80697101]];
+      var elementIndex : Nat__490723111
+    };
+  stable logs :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?LogEntry__586895032]];
+      var elementIndex : Nat__490723111
+    };
+  stable nextExperimentId : {var val : Nat};
+  stable nextLogId : {var val : Nat};
+  stable nextRunId : {var val : Nat};
+  stable runs :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?ExecutionRun__596726733]];
+      var elementIndex : Nat__490723111
+    };
+  stable scoreHistory :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?ScoreHistoryEntry__183968226]];
+      var elementIndex : Nat__490723111
+    }
+};

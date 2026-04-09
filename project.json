@@ -1,0 +1,25 @@
+{
+  "overview": "ChaosForge is a Chaos Engineering platform for SREs to design, run, and analyze controlled failure injection experiments. It features an Experiment Designer to configure failure modes and blast radius controls, an Execution Monitor for real-time experiment tracking with emergency stop, and a Resilience Dashboard to track organizational resilience scores over time.",
+  "features": [
+    "Experiment Designer with failure mode library (latency injection, CPU starvation, regional service failure, and more)",
+    "Blast radius controls to limit impact by instance %, traffic %, and geographic scope",
+    "Real-time Execution Monitor with live timeline, metrics, logs, and emergency stop",
+    "Resilience score calculation per experiment with probe-based pass/fail evaluation",
+    "Organization Resilience Dashboard with trend charts and breakdown by infrastructure and service",
+    "Experiment history table with filtering, sorting, and drill-down into results",
+    "Save experiments as drafts or reusable templates and clone existing configurations",
+    "Top recurring failure modes bar chart and anomaly detection for score drops"
+  ],
+  "category": "productivity",
+  "tags": [
+    "chaos-engineering",
+    "sre",
+    "resilience",
+    "failure-injection",
+    "devops",
+    "observability",
+    "experiments",
+    "dashboard"
+  ],
+  "last_updated": "2026-04-09T06:34:47.070Z"
+}

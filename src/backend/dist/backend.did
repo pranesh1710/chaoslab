@@ -1,0 +1,237 @@
+type Timestamp = int;
+type ServiceBreakdown = 
+ record {
+   averageScore: nat;
+   failureCount: nat;
+   "service": text;
+ };
+type ScoreHistoryEntry = 
+ record {
+   runId: RunId;
+   score: nat;
+   timestamp: Timestamp;
+ };
+type RunStatus = 
+ variant {
+   completed;
+   error;
+   queued;
+   running;
+   stopped;
+ };
+type RunId = nat;
+type RecentRunSummary = 
+ record {
+   date: Timestamp;
+   experimentId: ExperimentId;
+   experimentName: text;
+   faultCount: nat;
+   probePassRate: float64;
+   runId: RunId;
+   score: opt nat;
+   status: text;
+ };
+type ProbeType = 
+ variant {
+   custom: record {
+             command: text;
+             description: text;
+           };
+   http: record {
+           expectedStatusCode: nat;
+           timeoutSeconds: nat;
+           url: text;
+         };
+   metricThreshold:
+    record {
+      metricName: text;
+      operator: text;
+      threshold: float64;
+    };
+ };
+type ProbeResult = 
+ record {
+   checkedAt: Timestamp;
+   message: text;
+   passed: bool;
+   probeId: nat;
+   probeName: text;
+ };
+type ProbeConfig = 
+ record {
+   id: nat;
+   name: text;
+   probeType: ProbeType;
+ };
+type OrganizationStats = 
+ record {
+   breakdownByInfrastructure: vec InfraBreakdown;
+   breakdownByService: vec ServiceBreakdown;
+   currentScore: nat;
+   scoreHistory: vec ScoreHistoryEntry;
+   topFailureModes: vec FailureMode;
+ };
+type MetricsSnapshot = 
+ record {
+   affectedServiceCount: nat;
+   cpuUtilization: float64;
+   errorRate: float64;
+   latencyP50: float64;
+   latencyP95: float64;
+   latencyP99: float64;
+   memoryUtilization: float64;
+   probeResults: vec ProbeResult;
+ };
+type LogEntry = 
+ record {
+   action: text;
+   affectedTarget: text;
+   experimentRunId: RunId;
+   faultType: text;
+   id: nat;
+   result: text;
+   timestamp: Timestamp;
+ };
+type InfrastructureTarget = 
+ variant {
+   aws;
+   azure;
+   custom;
+   kubernetes;
+   linux;
+ };
+type InfraBreakdown = 
+ record {
+   averageScore: nat;
+   infrastructure: text;
+   runCount: nat;
+ };
+type FaultRunStatus = 
+ variant {
+   completed;
+   executing;
+   failed;
+   pending;
+ };
+type FaultResultView = 
+ record {
+   affectedInstances: nat;
+   completedAt: opt Timestamp;
+   faultId: FaultId;
+   startedAt: opt Timestamp;
+   status: FaultRunStatus;
+ };
+type FaultParameter = 
+ record {
+   key: text;
+   value: text;
+ };
+type FaultId = nat;
+type FaultConfig = 
+ record {
+   durationSeconds: nat;
+   faultType: text;
+   id: FaultId;
+   parameters: vec FaultParameter;
+   sequenceOrder: nat;
+   severityWeight: nat;
+ };
+type FailureMode = 
+ record {
+   averageSeverity: nat;
+   faultType: text;
+   occurrenceCount: nat;
+ };
+type ExperimentView = 
+ record {
+   blastRadius: BlastRadiusConfig;
+   createdAt: Timestamp;
+   description: text;
+   faults: vec FaultConfig;
+   hypothesis: text;
+   id: ExperimentId;
+   infrastructureTarget: InfrastructureTarget;
+   isTemplate: bool;
+   name: text;
+   owner: text;
+   probes: vec ProbeConfig;
+   status: ExperimentStatus;
+   tags: vec text;
+   updatedAt: Timestamp;
+ };
+type ExperimentStatus = 
+ variant {
+   completed;
+   draft;
+   error;
+   running;
+   scheduled;
+   stopped;
+ };
+type ExperimentInput = 
+ record {
+   blastRadius: BlastRadiusConfig;
+   description: text;
+   faults: vec FaultConfig;
+   hypothesis: text;
+   infrastructureTarget: InfrastructureTarget;
+   isTemplate: bool;
+   name: text;
+   probes: vec ProbeConfig;
+   tags: vec text;
+ };
+type ExperimentId = nat;
+type ExecutionRunView = 
+ record {
+   actualDurationSeconds: nat;
+   completedAt: opt Timestamp;
+   experimentId: ExperimentId;
+   faultResults: vec FaultResultView;
+   id: RunId;
+   metrics: opt MetricsSnapshot;
+   resilienceScore: opt nat;
+   startedAt: opt Timestamp;
+   status: RunStatus;
+ };
+type DateRangeFilter = 
+ record {
+   fromTs: opt Timestamp;
+   toTs: opt Timestamp;
+ };
+type BlastRadiusConfig = 
+ record {
+   autoRollback: bool;
+   geographicScope: variant {
+                      global;
+                      multi;
+                      single;
+                    };
+   instancePercentage: nat;
+   maxDurationSeconds: nat;
+   trafficPercentage: nat;
+ };
+service : {
+  addLogEntry: (runId: RunId, faultType: text, action: text, result: 
+   text, affectedTarget: text) -> (LogEntry);
+  cloneExperiment: (sourceId: ExperimentId) -> (opt ExperimentView);
+  completeRun: (runId: RunId, metrics: MetricsSnapshot) -> (bool);
+  createExperiment: (input: ExperimentInput) -> (ExperimentView);
+  deleteExperiment: (id: ExperimentId) -> (bool);
+  emergencyStop: (runId: RunId) -> (bool);
+  filterRuns: (dateRange: DateRangeFilter, infrastructure: opt text,
+   "service": opt text) -> (vec RecentRunSummary) query;
+  getExecutionRun: (id: RunId) -> (opt ExecutionRunView) query;
+  getExperiment: (id: ExperimentId) -> (opt ExperimentView) query;
+  getOrganizationStats: () -> (OrganizationStats) query;
+  getRecentRuns: (limit: nat) -> (vec RecentRunSummary) query;
+  getRunLogs: (runId: RunId) -> (vec LogEntry) query;
+  getTopFailureModes: () -> (vec FailureMode) query;
+  listExperiments: () -> (vec ExperimentView) query;
+  listRunsByExperiment: (experimentId: ExperimentId) ->
+   (vec ExecutionRunView) query;
+  listTemplates: () -> (vec ExperimentView) query;
+  startExperiment: (experimentId: ExperimentId) -> (opt ExecutionRunView);
+  updateExperiment: (id: ExperimentId, input: ExperimentInput) -> (bool);
+  updateFaultResult: (runId: RunId, faultId: FaultId, status: FaultRunStatus,
+   affectedInstances: nat) -> (bool);
+}
