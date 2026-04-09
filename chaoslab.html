@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ChaosLab — Chaos Engineering Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0c10; --bg2: #0f1218; --bg3: #151a22; --bg4: #1c2330;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0; --text2: #8892a4; --text3: #4f5a6e;
+    --purple: #7c6af7; --purple2: #9d8ff9; --purple-bg: rgba(124,106,247,0.12);
+    --green: #3dd68c; --green-bg: rgba(61,214,140,0.1);
+    --amber: #f5a623; --amber-bg: rgba(245,166,35,0.1);
+    --red: #f05252; --red-bg: rgba(240,82,82,0.1);
+    --blue: #38bdf8; --blue-bg: rgba(56,189,248,0.1);
+    --font-mono: 'Space Mono', monospace; --font-body: 'DM Sans', sans-serif;
+    --radius: 10px; --radius-lg: 14px;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+  nav { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; height: 60px; background: rgba(10,12,16,0.92); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); }
+  .nav-left { display: flex; align-items: center; gap: 12px; }
+  .logo-box { width: 34px; height: 34px; background: var(--purple); border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .logo-box::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.04) 2px, rgba(255,255,255,0.04) 4px); pointer-events: none; }
+  .logo-box svg { width: 18px; height: 18px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; }
+  .nav-brand { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .nav-env { font-size: 11px; color: var(--text3); background: var(--bg3); border: 1px solid var(--border); padding: 2px 8px; border-radius: 20px; font-family: var(--font-mono); }
+  .nav-right { display: flex; align-items: center; gap: 14px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .btn-primary { background: var(--purple); color: white; border: none; padding: 8px 18px; border-radius: 8px; font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+  .btn-primary:hover { background: #6855e8; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); padding: 7px 16px; border-radius: 8px; font-family: var(--font-body); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+  .page { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+  .section-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; }
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; position: relative; overflow: hidden; transition: border-color 0.2s; }
+  .metric-card:hover { border-color: var(--border2); }
+  .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 2px 2px 0 0; }
+  .metric-card.purple::before { background: var(--purple); } .metric-card.green::before { background: var(--green); } .metric-card.amber::before { background: var(--amber); } .metric-card.blue::before { background: var(--blue); }
+  .metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; font-family: var(--font-mono); }
+  .metric-value { font-size: 32px; font-weight: 600; font-family: var(--font-mono); color: var(--text); line-height: 1; margin-bottom: 6px; }
+  .metric-sub { font-size: 12px; color: var(--text2); }
+  .metric-sub .up { color: var(--green); } .metric-sub .dn { color: var(--red); }
+  .score-bar { height: 3px; background: var(--bg4); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; background: var(--purple); transition: width 0.5s ease; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge-success { background: var(--green-bg); color: var(--green); } .badge-warning { background: var(--amber-bg); color: var(--amber); } .badge-danger { background: var(--red-bg); color: var(--red); } .badge-info { background: var(--blue-bg); color: var(--blue); } .badge-purple { background: var(--purple-bg); color: var(--purple2); } .badge-muted { background: var(--bg4); color: var(--text2); }
+  .exp-list { display: flex; flex-direction: column; gap: 0; }
+  .exp-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .exp-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .exp-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .exp-info { flex: 1; min-width: 0; }
+  .exp-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exp-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .exp-meta strong { color: var(--amber); } .exp-meta strong.safe { color: var(--green); } .exp-meta strong.danger { color: var(--red); }
+  .prog-bar { height: 3px; background: var(--bg4); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 2px; }
+  .fm-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .fm-chip { font-size: 11px; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid var(--border); color: var(--text2); background: transparent; font-family: var(--font-body); transition: all 0.15s; }
+  .fm-chip:hover { border-color: var(--border2); color: var(--text); }
+  .fm-chip.active { background: var(--purple-bg); border-color: var(--purple); color: var(--purple2); }
+  .fm-grid { display: flex; flex-direction: column; gap: 6px; }
+  .fm-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.15s; }
+  .fm-item:hover { background: var(--bg3); border-color: var(--border2); }
+  .fm-item.selected { border-color: var(--purple); background: var(--purple-bg); }
+  .fm-icon { width: 32px; height: 32px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .fm-text { flex: 1; min-width: 0; }
+  .fm-name { font-size: 13px; font-weight: 500; color: var(--text); } .fm-desc { font-size: 11px; color: var(--text3); margin-top: 1px; }
+  .blast-center { text-align: center; padding: 8px 0 6px; }
+  .blast-pct { font-size: 36px; font-weight: 700; font-family: var(--font-mono); margin-top: -4px; transition: color 0.3s; }
+  .blast-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .control-row { margin-bottom: 14px; }
+  .control-label { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+  .control-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); font-weight: 700; }
+  input[type=range] { width: 100%; height: 4px; -webkit-appearance: none; appearance: none; background: var(--bg4); border-radius: 2px; cursor: pointer; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--purple); cursor: pointer; border: 2px solid var(--bg2); transition: transform 0.1s; }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  .toggle { position: relative; width: 38px; height: 20px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--bg4); border-radius: 10px; cursor: pointer; transition: background 0.2s; }
+  .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: var(--text2); border-radius: 50%; transition: all 0.2s; }
+  .toggle input:checked + .toggle-slider { background: var(--green); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: white; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .toggle-label { font-size: 12px; color: var(--text2); }
+  .selected-fm-info { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--text2); margin-bottom: 12px; min-height: 40px; }
+  .heatmap-wrap { overflow-x: auto; }
+  .heatmap-grid { display: grid; gap: 4px; }
+  .heatmap-row { display: grid; grid-template-columns: 88px repeat(7, 1fr); gap: 4px; align-items: center; }
+  .heatmap-svc { font-size: 10px; color: var(--text3); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .heatmap-cell { height: 24px; border-radius: 4px; transition: opacity 0.15s; cursor: default; }
+  .heatmap-cell:hover { opacity: 0.75; }
+  .heatmap-day { font-size: 10px; color: var(--text3); text-align: center; font-family: var(--font-mono); }
+  .heat-legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .heat-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text3); }
+  .heat-swatch { width: 12px; height: 12px; border-radius: 3px; }
+  .weakness-list { display: flex; flex-direction: column; }
+  .weakness-row { display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .weakness-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .w-num { font-family: var(--font-mono); font-size: 20px; font-weight: 700; min-width: 30px; line-height: 1.2; }
+  .w-info { flex: 1; } .w-title { font-size: 13px; font-weight: 500; color: var(--text); } .w-desc { font-size: 11px; color: var(--text3); margin-top: 3px; line-height: 1.5; } .w-tags { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  @keyframes fadeInUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+  .fade-in { animation: fadeInUp 0.4s ease both; }
+  .fade-in:nth-child(1){animation-delay:0.05s} .fade-in:nth-child(2){animation-delay:0.1s} .fade-in:nth-child(3){animation-delay:0.15s} .fade-in:nth-child(4){animation-delay:0.2s}
+  footer { border-top: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+  @media (max-width: 900px) { .metrics-row { grid-template-columns: repeat(2,1fr); } .grid2 { grid-template-columns: 1fr; } nav { padding: 0 16px; } .page { padding: 16px; } }
+  @media (max-width: 500px) { .metrics-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <div class="logo-box">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    </div>
+    <span class="nav-brand">ChaosLab</span>
+    <span class="nav-env">staging // us-east-1</span>
+  </div>
+  <div class="nav-right">
+    <div class="status-pill">
+      <span class="dot dot-green"></span>
+      All guards active
+    </div>
+    <button class="btn-ghost" onclick="alert('Connecting to cluster...')">Connect cluster</button>
+    <button class="btn-primary" onclick="openNewExpModal()">+ New experiment</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <div class="metrics-row">
+    <div class="metric-card purple fade-in">
+      <div class="metric-label">Resilience score</div>
+      <div class="metric-value" id="res-score-val">0</div>
+      <div class="score-bar"><div class="score-fill" id="res-bar" style="width:0%"></div></div>
+      <div class="metric-sub" style="margin-top:6px;"><span class="up">+4 this week</span> · target: 90</div>
+    </div>
+    <div class="metric-card green fade-in">
+      <div class="metric-label">Experiments run</div>
+      <div class="metric-value">142</div>
+      <div class="metric-sub">18 this week · <span class="up">3 running</span></div>
+    </div>
+    <div class="metric-card amber fade-in">
+      <div class="metric-label">Weaknesses found</div>
+      <div class="metric-value">27</div>
+      <div class="metric-sub"><span class="up">12 fixed</span> · 8 in progress</div>
+    </div>
+    <div class="metric-card blue fade-in">
+      <div class="metric-label">Mean time to detect</div>
+      <div class="metric-value">4.2m</div>
+      <div class="metric-sub"><span class="up">▼ 1.8m</span> vs last month</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="section-hdr">
+        <span class="section-title">Resilience score — 90-day trend</span>
+        <div style="display:flex;gap:10px;">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);"><span style="width:10px;height:10px;border-radius:2px;background:var(--purple);display:inline-block;"></span>Score</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);"><span style="width:10px;height:2px;background:var(--red);display:inline-block;"></span>Incidents</span>
+        </div>
+      </div>
+      <div style="position:relative;height:200px;">
+        <canvas id="trendChart" role="img" aria-label="Line chart of resilience score over 13 weeks improving from 55 to 73">Score improved from 55 to 73.</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-hdr">
+        <span class="section-title">Active experiments</span>
+        <span class="badge badge-warning">3 running</span>
+      </div>
+      <div class="exp-list">
+        <div class="exp-row">
+          <div class="exp-icon" style="background:var(--purple-bg);">⚡</div>
+          <div class="exp-info">
+            <div class="exp-name">Latency injection — checkout API</div>
+            <div class="exp-meta">Started 14m ago · blast: <strong>15%</strong></div>
+            <div class="prog-bar"><div class="prog-fill" style="width:68%;background:var(--purple);"></div></div>
+          </div>
+          <span class="badge badge-warning">Running</span>
+        </div>
+        <div class="exp-row">
+          <div class="exp-icon" style="background:var(--amber-bg);">🔥</div>
+          <div class="exp-info">
+            <div class="exp-name">CPU starvation — inventory svc</div>
+            <div class="exp-meta">Started 3m ago · blast: <strong class="safe">5%</strong></div>
+            <div class="prog-bar"><div class="prog-fill" style="width:22%;background:var(--amber);"></div></div>
+          </div>
+          <span class="badge badge-warning">Running</span>
+        </div>
+        <div class="exp-row">
+          <div class="exp-icon" style="background:var(--red-bg);">🌐</div>
+          <div class="exp-info">
+            <div class="exp-name">Regional failover — ap-south-1</div>
+            <div class="exp-meta">Scheduled · blast: <strong class="danger">40%</strong></div>
+            <div class="prog-bar"><div class="prog-fill" style="width:0%;background:var(--red);"></div></div>
+          </div>
+          <span class="badge badge-info">Queued</span>
+        </div>
+        <div class="exp-row">
+          <div class="exp-icon" style="background:var(--green-bg);">✅</div>
+          <div class="exp-info">
+            <div class="exp-name">Pod kill — notification svc</div>
+            <div class="exp-meta">Completed 1h ago · duration: 12m</div>
+            <div class="prog-bar"><div class="prog-fill" style="width:100%;background:var(--green);"></div></div>
+          </div>
+          <span class="badge badge-success">Passed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="section-hdr">
+        <span class="section-title">Failure mode library</span>
+        <span style="font-size:11px;color:var(--text3);">8 modes available</span>
+      </div>
+      <div class="fm-filters">
+        <button class="fm-chip active" onclick="filterFM(this,'all')">All</button>
+        <button class="fm-chip" onclick="filterFM(this,'network')">Network</button>
+        <button class="fm-chip" onclick="filterFM(this,'resource')">Resource</button>
+        <button class="fm-chip" onclick="filterFM(this,'infra')">Infra</button>
+        <button class="fm-chip" onclick="filterFM(this,'app')">App</button>
+      </div>
+      <div class="fm-grid" id="fm-list">
+        <div class="fm-item" data-cat="network" onclick="selectFM(this,'Latency injection','Add artificial delay to service calls')">
+          <div class="fm-icon" style="background:var(--purple-bg);">⏱</div>
+          <div class="fm-text"><div class="fm-name">Latency injection</div><div class="fm-desc">Add artificial delay to service calls</div></div>
+          <span class="badge badge-warning">Medium</span>
+        </div>
+        <div class="fm-item" data-cat="network" onclick="selectFM(this,'Packet loss','Drop % of network packets randomly')">
+          <div class="fm-icon" style="background:var(--purple-bg);">📡</div>
+          <div class="fm-text"><div class="fm-name">Packet loss</div><div class="fm-desc">Drop % of network packets randomly</div></div>
+          <span class="badge badge-warning">Medium</span>
+        </div>
+        <div class="fm-item" data-cat="resource" onclick="selectFM(this,'CPU starvation','Hog CPU cycles on target pods')">
+          <div class="fm-icon" style="background:var(--amber-bg);">🔥</div>
+          <div class="fm-text"><div class="fm-name">CPU starvation</div><div class="fm-desc">Hog CPU cycles on target pods</div></div>
+          <span class="badge badge-danger">High</span>
+        </div>
+        <div class="fm-item" data-cat="resource" onclick="selectFM(this,'Memory pressure','Exhaust available memory gradually')">
+          <div class="fm-icon" style="background:var(--amber-bg);">💾</div>
+          <div class="fm-text"><div class="fm-name">Memory pressure</div><div class="fm-desc">Exhaust available memory gradually</div></div>
+          <span class="badge badge-danger">High</span>
+        </div>
+        <div class="fm-item" data-cat="infra" onclick="selectFM(this,'Regional failover','Simulate full AZ / region outage')">
+          <div class="fm-icon" style="background:var(--red-bg);">🌐</div>
+          <div class="fm-text"><div class="fm-name">Regional failover</div><div class="fm-desc">Simulate full AZ / region outage</div></div>
+          <span class="badge badge-danger">Critical</span>
+        </div>
+        <div class="fm-item" data-cat="infra" onclick="selectFM(this,'Pod kill','Randomly terminate k8s pods')">
+          <div class="fm-icon" style="background:var(--blue-bg);">💀</div>
+          <div class="fm-text"><div class="fm-name">Pod kill</div><div class="fm-desc">Randomly terminate k8s pods</div></div>
+          <span class="badge badge-warning">Medium</span>
+        </div>
+        <div class="fm-item" data-cat="app" onclick="selectFM(this,'Dependency blackhole','Block all calls to a downstream service')">
+          <div class="fm-icon" style="background:var(--green-bg);">🕳</div>
+          <div class="fm-text"><div class="fm-name">Dependency blackhole</div><div class="fm-desc">Block all calls to downstream service</div></div>
+          <span class="badge badge-danger">High</span>
+        </div>
+        <div class="fm-item" data-cat="app" onclick="selectFM(this,'Disk fill','Fill disk to trigger I/O errors')">
+          <div class="fm-icon" style="background:var(--blue-bg);">💿</div>
+          <div class="fm-text"><div class="fm-name">Disk fill</div><div class="fm-desc">Fill disk to trigger I/O errors</div></div>
+          <span class="badge badge-warning">Medium</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-hdr">
+        <span class="section-title">Blast radius control</span>
+        <span id="blast-risk-badge" class="badge badge-success">Low risk</span>
+      </div>
+      <div class="blast-center">
+        <canvas id="blastCanvas" width="200" height="200" role="img" aria-label="Blast radius dial"></canvas>
+        <div class="blast-pct" id="blast-pct-label">20%</div>
+        <div class="blast-sub" id="blast-sub-label">~2 of 10 instances affected</div>
+      </div>
+      <div class="control-row">
+        <div class="control-label">Blast radius <span class="control-val" id="br-out">20%</span></div>
+        <input type="range" min="1" max="100" step="1" value="20" id="blastSlider" />
+      </div>
+      <div class="control-row">
+        <div class="control-label">Latency (if applicable) <span class="control-val" id="lat-out">200ms</span></div>
+        <input type="range" min="10" max="2000" step="10" value="200" id="latSlider" />
+      </div>
+      <div class="control-row">
+        <div class="control-label">Duration <span class="control-val" id="dur-out">10 min</span></div>
+        <input type="range" min="1" max="60" step="1" value="10" id="durSlider" />
+      </div>
+      <div class="toggle-row">
+        <label class="toggle"><input type="checkbox" checked id="autoRollback" /><span class="toggle-slider"></span></label>
+        <span class="toggle-label">Auto-rollback on SLO breach</span>
+      </div>
+      <div class="selected-fm-info" id="selected-fm-info">Select a failure mode from the library to configure your experiment.</div>
+      <button class="btn-primary" style="width:100%;padding:10px;" onclick="launchExperiment()">Run experiment</button>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="section-hdr">
+        <span class="section-title">Service health heatmap</span>
+        <span style="font-size:11px;color:var(--text3);">Last 7 days</span>
+      </div>
+      <div class="heatmap-wrap" id="heatmap-wrap"></div>
+      <div class="heat-legend">
+        <div class="heat-legend-item"><div class="heat-swatch" style="background:#1a3a28;"></div>Healthy</div>
+        <div class="heat-legend-item"><div class="heat-swatch" style="background:#3a2a10;"></div>Degraded</div>
+        <div class="heat-legend-item"><div class="heat-swatch" style="background:#5a2010;"></div>Failed under chaos</div>
+        <div class="heat-legend-item"><div class="heat-swatch" style="background:#7a1010;"></div>Critical failure</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-hdr">
+        <span class="section-title">Top weaknesses discovered</span>
+        <span class="badge badge-muted">27 total</span>
+      </div>
+      <div class="weakness-list">
+        <div class="weakness-row">
+          <div class="w-num" style="color:var(--red);">01</div>
+          <div class="w-info">
+            <div class="w-title">Payment svc — no circuit breaker</div>
+            <div class="w-desc">Cascade failure when upstream auth svc adds 300ms latency. Full service degradation within 45s.</div>
+            <div class="w-tags"><span class="badge badge-danger">Critical</span><span class="badge badge-info">In review</span></div>
+          </div>
+        </div>
+        <div class="weakness-row">
+          <div class="w-num" style="color:var(--red);">02</div>
+          <div class="w-info">
+            <div class="w-title">DB connection pool exhaustion</div>
+            <div class="w-desc">Under CPU stress, connection pool exhausts in under 90s with no backoff strategy.</div>
+            <div class="w-tags"><span class="badge badge-danger">Critical</span><span class="badge badge-warning">Fixing</span></div>
+          </div>
+        </div>
+        <div class="weakness-row">
+          <div class="w-num" style="color:var(--amber);">03</div>
+          <div class="w-info">
+            <div class="w-title">Search svc — single-region replica</div>
+            <div class="w-desc">No automatic failover when ap-south-1 goes offline. 100% search unavailability.</div>
+            <div class="w-tags"><span class="badge badge-warning">High</span><span class="badge badge-purple">Backlog</span></div>
+          </div>
+        </div>
+        <div class="weakness-row">
+          <div class="w-num" style="color:var(--amber);">04</div>
+          <div class="w-info">
+            <div class="w-title">Retry storms on 503 responses</div>
+            <div class="w-desc">Clients retry exponentially without jitter, amplifying downstream load by 8x.</div>
+            <div class="w-tags"><span class="badge badge-warning">High</span><span class="badge badge-success">Fixed</span></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-ghost" style="width:100%;margin-top:14px;padding:9px;" onclick="alert('Full weakness report loading...')">View all 27 weaknesses →</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div class="section-hdr">
+      <span class="section-title">Experiment outcomes — last 30 days</span>
+      <div style="display:flex;gap:12px;">
+        <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);"><span style="width:10px;height:10px;border-radius:2px;background:var(--purple);display:inline-block;"></span>Passed</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);"><span style="width:10px;height:10px;border-radius:2px;background:var(--red);display:inline-block;"></span>Weakness found</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);"><span style="width:10px;height:10px;border-radius:2px;background:var(--amber);display:inline-block;"></span>Auto-rolled back</span>
+      </div>
+    </div>
+    <div style="position:relative;height:180px;">
+      <canvas id="outcomeChart" role="img" aria-label="Stacked bar chart of experiment outcomes per week">Weekly outcomes over 4 weeks.</canvas>
+    </div>
+  </div>
+
+</div>
+
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;width:480px;max-width:95vw;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--text);">New experiment</span>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Experiment name</label>
+      <input type="text" placeholder="e.g. checkout-latency-test-01" style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;outline:none;" />
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Target service</label>
+      <select style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;outline:none;">
+        <option>checkout</option><option>auth</option><option>payment</option><option>inventory</option><option>search</option><option>notification</option>
+      </select>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">Failure mode</label>
+      <select style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:9px 12px;border-radius:8px;font-family:var(--font-body);font-size:13px;outline:none;">
+        <option>Latency injection</option><option>CPU starvation</option><option>Pod kill</option><option>Memory pressure</option><option>Packet loss</option><option>Regional failover</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeModal()" class="btn-ghost" style="flex:1;padding:10px;">Cancel</button>
+      <button onclick="closeModal();alert('Experiment queued successfully!')" class="btn-primary" style="flex:2;padding:10px;">Queue experiment</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>ChaosLab v0.9.1 — Chaos Engineering Platform</span>
+  <span>Built for hackathon · MIT License</span>
+  <span id="live-time"></span>
+</footer>
+
+<script>
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: ['W1','W2','W3','W4','W5','W6','W7','W8','W9','W10','W11','W12','Now'],
+    datasets: [
+      { label:'Score', yAxisID:'y', data:[55,57,59,58,61,63,62,65,67,69,70,72,73], borderColor:'#7c6af7', backgroundColor:'rgba(124,106,247,0.08)', fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#7c6af7', borderWidth:2 },
+      { label:'Incidents', yAxisID:'y2', data:[4,3,5,2,3,2,4,1,2,1,1,2,0], borderColor:'#f05252', borderDash:[4,4], backgroundColor:'transparent', tension:0.3, pointRadius:3, pointBackgroundColor:'#f05252', borderWidth:1.5 }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{mode:'index',intersect:false,backgroundColor:'#1c2330',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#8892a4',bodyColor:'#e8eaf0'} }, scales:{ x:{grid:{display:false},ticks:{color:'#4f5a6e',font:{size:11}}}, y:{min:40,max:100,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#4f5a6e',font:{size:11}}}, y2:{position:'right',min:0,max:10,grid:{display:false},ticks:{color:'#4f5a6e',font:{size:11}}} } }
+});
+
+new Chart(document.getElementById('outcomeChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Week 1','Week 2','Week 3','Week 4'],
+    datasets: [
+      { label:'Passed', data:[18,22,25,28], backgroundColor:'#7c6af7', stack:'s' },
+      { label:'Weakness found', data:[8,6,5,4], backgroundColor:'#f05252', stack:'s' },
+      { label:'Auto-rolled back', data:[3,4,2,2], backgroundColor:'#f5a623', stack:'s' }
+    ]
+  },
+  options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c2330',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#8892a4',bodyColor:'#e8eaf0'}}, scales:{ x:{stacked:true,grid:{display:false},ticks:{color:'#4f5a6e',font:{size:12}}}, y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#4f5a6e',font:{size:11}}} } }
+});
+
+function drawBlast(pct) {
+  const c = document.getElementById('blastCanvas'), ctx = c.getContext('2d');
+  const cx=100, cy=105, r=72;
+  ctx.clearRect(0,0,200,200);
+  ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI*0.75,Math.PI*2.25); ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=12; ctx.lineCap='round'; ctx.stroke();
+  const color = pct<25?'#3dd68c':pct<60?'#f5a623':'#f05252';
+  ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI*0.75,Math.PI*0.75+Math.PI*1.5*(pct/100)); ctx.strokeStyle=color; ctx.lineWidth=12; ctx.stroke();
+  for(let i=0;i<=10;i++){ const a=Math.PI*0.75+Math.PI*1.5*(i/10); ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*(r-18),cy+Math.sin(a)*(r-18)); ctx.lineTo(cx+Math.cos(a)*(r-8),cy+Math.sin(a)*(r-8)); ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1.5; ctx.stroke(); }
+  document.getElementById('blast-pct-label').textContent=pct+'%';
+  document.getElementById('blast-pct-label').style.color=color;
+  document.getElementById('blast-sub-label').textContent='~'+Math.max(1,Math.round(10*pct/100))+' of 10 instances affected';
+  document.getElementById('br-out').textContent=pct+'%';
+  const b=document.getElementById('blast-risk-badge');
+  if(pct<25){b.className='badge badge-success';b.textContent='Low risk';}
+  else if(pct<60){b.className='badge badge-warning';b.textContent='Medium risk';}
+  else{b.className='badge badge-danger';b.textContent='High risk';}
+}
+document.getElementById('blastSlider').addEventListener('input',e=>drawBlast(parseInt(e.target.value)));
+document.getElementById('latSlider').addEventListener('input',e=>{document.getElementById('lat-out').textContent=e.target.value+'ms';});
+document.getElementById('durSlider').addEventListener('input',e=>{document.getElementById('dur-out').textContent=e.target.value+' min';});
+drawBlast(20);
+
+function filterFM(el,cat){
+  document.querySelectorAll('.fm-chip').forEach(c=>c.classList.remove('active')); el.classList.add('active');
+  document.querySelectorAll('#fm-list .fm-item').forEach(item=>{ item.style.display=(cat==='all'||item.dataset.cat===cat)?'flex':'none'; });
+}
+
+let selectedFM=null;
+function selectFM(el,name,desc){
+  document.querySelectorAll('.fm-item').forEach(i=>i.classList.remove('selected')); el.classList.add('selected'); selectedFM=name;
+  document.getElementById('selected-fm-info').innerHTML='<strong style="color:var(--purple2);">'+name+'</strong> selected — '+desc+'. Adjust controls above, then run.';
+}
+
+function launchExperiment(){
+  if(!selectedFM){alert('Please select a failure mode first.');return;}
+  const br=document.getElementById('blastSlider').value, dur=document.getElementById('durSlider').value, rb=document.getElementById('autoRollback').checked;
+  alert('Queued: '+selectedFM+'\nBlast radius: '+br+'%\nDuration: '+dur+' min\nAuto-rollback: '+(rb?'ON':'OFF'));
+}
+
+const services=['checkout','auth','payment','inventory','search','notify','gateway','cdn','db-primary','db-replica','queue','cache'];
+const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const heatData={checkout:[1,2,3,1,0,0,1],auth:[0,1,0,0,0,0,0],payment:[3,3,2,3,1,0,2],inventory:[0,1,2,1,0,0,0],search:[1,1,1,2,3,0,1],notify:[0,0,1,0,0,0,0],gateway:[0,0,0,1,0,0,0],cdn:[0,0,0,0,0,0,0],'db-primary':[2,1,3,2,1,0,1],'db-replica':[1,2,1,1,0,0,0],queue:[0,1,0,0,0,0,0],cache:[0,0,1,0,0,0,0]};
+const heatColors=['#1a3a28','#3a2a10','#5a2010','#7a1010'];
+const heatTips=['Healthy','Degraded','Failed under chaos','Critical failure'];
+
+(function buildHeatmap(){
+  const wrap=document.getElementById('heatmap-wrap'), grid=document.createElement('div'); grid.className='heatmap-grid';
+  const dr=document.createElement('div'); dr.className='heatmap-row';
+  dr.innerHTML='<div></div>'+days.map(d=>'<div class="heatmap-day">'+d+'</div>').join(''); grid.appendChild(dr);
+  services.forEach(s=>{
+    const row=document.createElement('div'); row.className='heatmap-row';
+    const lbl=document.createElement('div'); lbl.className='heatmap-svc'; lbl.textContent=s; row.appendChild(lbl);
+    heatData[s].forEach((v,i)=>{ const cell=document.createElement('div'); cell.className='heatmap-cell'; cell.style.background=heatColors[Math.min(v,3)]; cell.title=s+' · '+days[i]+': '+heatTips[Math.min(v,3)]; row.appendChild(cell); });
+    grid.appendChild(row);
+  }); wrap.appendChild(grid);
+})();
+
+function openNewExpModal(){ document.getElementById('modal-overlay').style.display='flex'; }
+function closeModal(){ document.getElementById('modal-overlay').style.display='none'; }
+document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+function updateTime(){ document.getElementById('live-time').textContent=new Date().toLocaleTimeString(); }
+setInterval(updateTime,1000); updateTime();
+
+let sc=0;
+const si=setInterval(()=>{ sc=Math.min(sc+1,73); document.getElementById('res-score-val').textContent=sc; document.getElementById('res-bar').style.width=sc+'%'; if(sc>=73)clearInterval(si); },18);
+</script>
+</body>
+</html>
